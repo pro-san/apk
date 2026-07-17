@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, User, Github, Chrome, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { sendWelcomeEmail } from '../lib/emailService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -20,12 +21,19 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMsg('Authentication successful! Routing dashboard...');
+    
+    const userData = {
+      name: name || (role === 'admin' ? 'Administrator' : role === 'vendor' ? 'Alex Creator' : 'Maisie Clarke'),
+      email: email || (role === 'admin' ? 'admin@lumina.ai' : role === 'vendor' ? 'alex@labs.com' : 'user@domain.com'),
+      role,
+    };
+
+    if (isRegister) {
+      sendWelcomeEmail(userData);
+    }
+
     setTimeout(() => {
-      onLoginSuccess({
-        name: name || (role === 'admin' ? 'Administrator' : role === 'vendor' ? 'Alex Creator' : 'Maisie Clarke'),
-        email: email || (role === 'admin' ? 'admin@lumina.ai' : role === 'vendor' ? 'alex@labs.com' : 'user@domain.com'),
-        role,
-      });
+      onLoginSuccess(userData);
       onClose();
       setSuccessMsg('');
     }, 1200);

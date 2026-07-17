@@ -11,6 +11,8 @@ import { AdminPanel } from './components/AdminPanel';
 import { CodebaseHub } from './components/CodebaseHub';
 import { AuthModal } from './components/AuthModal';
 import { aiTools as initialTools, reviews as initialReviews } from './data';
+import { sendPurchaseConfirmationEmail } from './lib/emailService';
+import { DeveloperMailbox } from './components/DeveloperMailbox';
 import { AITool, Order, Review } from './types';
 
 export default function App() {
@@ -38,6 +40,19 @@ export default function App() {
 
   // Global Reviews State
   const [reviewsList, setReviewsList] = useState<Review[]>(initialReviews);
+
+  // Parse direct permalinks on component mount
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const toolId = params.get('tool');
+    if (toolId) {
+      const matched = tools.find(t => t.id === toolId);
+      if (matched) {
+        setSelectedTool(matched);
+        setActiveView('detail');
+      }
+    }
+  }, [tools]);
 
   const handleAddReview = (newReview: Review) => {
     setReviewsList((prev) => [newReview, ...prev]);
@@ -136,6 +151,14 @@ export default function App() {
     setOrders([newOrder, ...orders]);
     setPurchasedTools([tool, ...purchasedTools]);
     
+    // Dispatch purchase confirmation email via mock notification service
+    const userToEmail = currentUser || {
+      name: 'Maisie Clarke',
+      email: 'maisieclarke506@gmail.com',
+      role: 'user'
+    };
+    sendPurchaseConfirmationEmail(userToEmail, tool, newOrder);
+
     alert(`Payment successful! Stripe license active. ${tool.name} added to your active dashboard.`);
     setActiveView('user-dash');
   };
@@ -424,6 +447,9 @@ export default function App() {
         onClose={() => setIsAuthOpen(false)}
         onLoginSuccess={handleLoginSuccess}
       />
+
+      {/* FLOATING SANDBOX DEVELOPER MAILBOX SIMULATOR */}
+      <DeveloperMailbox />
     </div>
   );
 }

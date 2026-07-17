@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { AITool, Review } from '../types';
 import { reviews as initialReviews, aiTools } from '../data';
+import { ShareMenu } from './ShareMenu';
 
 interface ToolDetailProps {
   tool: AITool;
@@ -163,19 +164,24 @@ export function ToolDetail({
           
           {/* Main overview gallery */}
           <div className="lg:col-span-2">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
-              <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl w-fit flex-shrink-0">
-                <Sparkles className="w-10 h-10" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-extrabold text-white leading-tight">{tool.name}</h1>
-                <p className="text-sm text-slate-400 mt-1">{tool.tagline}</p>
-                <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500">
-                  <span className="text-amber-500 font-bold">★ {tool.rating} ({tool.ratingCount} reviews)</span>
-                  <span>Category: <span className="text-slate-300 capitalize">{tool.category}</span></span>
-                  <span>Creator: <span className="text-slate-300">{tool.author}</span></span>
-                  <span>Model: <span className="text-slate-300 font-mono text-[10px]">{tool.provider}</span></span>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl w-fit flex-shrink-0">
+                  <Sparkles className="w-10 h-10" />
                 </div>
+                <div>
+                  <h1 className="text-3xl font-extrabold text-white leading-tight">{tool.name}</h1>
+                  <p className="text-sm text-slate-400 mt-1">{tool.tagline}</p>
+                  <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-500">
+                    <span className="text-amber-500 font-bold">★ {tool.rating} ({tool.ratingCount} reviews)</span>
+                    <span>Category: <span className="text-slate-300 capitalize">{tool.category}</span></span>
+                    <span>Creator: <span className="text-slate-300">{tool.author}</span></span>
+                    <span>Model: <span className="text-slate-300 font-mono text-[10px]">{tool.provider}</span></span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex-shrink-0 self-start sm:self-center">
+                <ShareMenu tool={tool} />
               </div>
             </div>
 
