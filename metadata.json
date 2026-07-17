@@ -1,0 +1,6 @@
+{
+  "name": "AI Marketplace Platform",
+  "description": "A comprehensive SaaS marketplace for discovering, purchasing, and subscribing to AI models and tools, with an interactive live playgound and Laravel/Vue codebase deliverables.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
