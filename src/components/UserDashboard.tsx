@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { AITool, SupportTicket, Order } from '../types';
 import { aiTools } from '../data';
+import { ApiConsumptionTracker } from './ApiConsumptionTracker';
 
 interface UserDashboardProps {
   purchasedTools: AITool[];
@@ -230,16 +231,22 @@ export function UserDashboard({
 
         {/* ACTIVE SUBTAB VIEW */}
         {activeSubTab === 'tools' && (
-          <div>
-            <h2 className="text-xl font-extrabold text-white mb-6">Purchased & Subscribed Tools</h2>
-            {purchasedTools.length === 0 ? (
-              <div className="p-12 text-center border border-dashed border-slate-900 rounded-3xl bg-slate-950/40">
-                <Cpu className="w-12 h-12 text-slate-800 mx-auto mb-4" />
-                <h3 className="text-base font-bold text-slate-300">You haven't acquired any tools yet</h3>
-                <p className="text-xs text-slate-500 mt-1">Explore our marketplace to acquire licenses and run playgrounds.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-10">
+            <ApiConsumptionTracker 
+              purchasedTools={purchasedTools} 
+              onSelectTool={onSelectTool} 
+            />
+
+            <div>
+              <h2 className="text-xl font-extrabold text-white mb-6">Purchased & Subscribed Tools</h2>
+              {purchasedTools.length === 0 ? (
+                <div className="p-12 text-center border border-dashed border-slate-900 rounded-3xl bg-slate-950/40">
+                  <Cpu className="w-12 h-12 text-slate-800 mx-auto mb-4" />
+                  <h3 className="text-base font-bold text-slate-300">You haven't acquired any tools yet</h3>
+                  <p className="text-xs text-slate-500 mt-1">Explore our marketplace to acquire licenses and run playgrounds.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {purchasedTools.map((tool) => (
                   <div 
                     key={tool.id}
@@ -266,6 +273,7 @@ export function UserDashboard({
                 ))}
               </div>
             )}
+          </div>
           </div>
         )}
 
