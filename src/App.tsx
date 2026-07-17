@@ -394,6 +394,7 @@ export default function App() {
             orders={orders}
             wishlist={wishlist}
             onToggleWishlist={handleToggleWishlist}
+            currentUser={currentUser}
           />
         )}
 

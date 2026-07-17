@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Cpu, CreditCard, Activity, Key, Ticket, Plus, CheckCircle2, 
-  Copy, ExternalLink, RefreshCw, Send, AlertCircle, Heart, Trash2, Star 
+  Copy, ExternalLink, RefreshCw, Send, AlertCircle, Heart, Trash2, Star,
+  Shield, Lock, Smartphone, Check
 } from 'lucide-react';
 import { AITool, SupportTicket, Order } from '../types';
 import { aiTools } from '../data';
@@ -12,6 +13,7 @@ interface UserDashboardProps {
   orders: Order[];
   wishlist: string[];
   onToggleWishlist: (tool: AITool) => void;
+  currentUser?: { name: string; email: string; role: 'user' | 'vendor' | 'admin' } | null;
 }
 
 export function UserDashboard({ 
@@ -19,12 +21,69 @@ export function UserDashboard({
   onSelectTool, 
   orders, 
   wishlist, 
-  onToggleWishlist 
+  onToggleWishlist,
+  currentUser
 }: UserDashboardProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'tools' | 'favorites' | 'billing' | 'keys' | 'support'>('tools');
+  const [activeSubTab, setActiveSubTab] = useState<'tools' | 'favorites' | 'billing' | 'keys' | 'support' | 'security'>('tools');
   const [apiKey, setApiKey] = useState('lumina_live_pk_8b24ef09da7812bc');
   const [isCopied, setIsCopied] = useState(false);
   const [loadingKey, setLoadingKey] = useState(false);
+
+  // Two-Factor Authentication states
+  const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('lumina_2fa_enabled') === 'true';
+  });
+  const [twoFactorStep, setTwoFactorStep] = useState<'idle' | 'setup' | 'backup'>('idle');
+  const [verificationCodeInput, setVerificationCodeInput] = useState('');
+  const [verificationError, setVerificationError] = useState('');
+  const [copiedBackup, setCopiedBackup] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[]>(() => {
+    const saved = localStorage.getItem('lumina_2fa_backup_codes');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [tempSecret, setTempSecret] = useState('');
+  const [simulatedCode, setSimulatedCode] = useState('');
+
+  const handleStartSetup = () => {
+    const secret = 'LUMINA-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-2FA';
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setTempSecret(secret);
+    setSimulatedCode(code);
+    setVerificationCodeInput('');
+    setVerificationError('');
+    setTwoFactorStep('setup');
+  };
+
+  const handleVerify2FA = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCodeInput.trim() === simulatedCode) {
+      const codes = Array.from({ length: 4 }, () => 
+        'LUMINA-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase()
+      );
+      setBackupCodes(codes);
+      localStorage.setItem('lumina_2fa_backup_codes', JSON.stringify(codes));
+      setIsTwoFactorEnabled(true);
+      localStorage.setItem('lumina_2fa_enabled', 'true');
+      setTwoFactorStep('backup');
+      setVerificationError('');
+    } else {
+      setVerificationError('Invalid 6-digit verification code. Please enter the correct code shown below.');
+    }
+  };
+
+  const handleDisable2FA = () => {
+    if (confirm('Are you sure you want to disable Two-Factor Authentication? This will reduce your account security.')) {
+      setIsTwoFactorEnabled(false);
+      localStorage.setItem('lumina_2fa_enabled', 'false');
+      setTwoFactorStep('idle');
+    }
+  };
+
+  const handleCopyBackup = () => {
+    navigator.clipboard.writeText(backupCodes.join('\n'));
+    setCopiedBackup(true);
+    setTimeout(() => setCopiedBackup(false), 2000);
+  };
 
   // Tickets local state
   const [tickets, setTickets] = useState<SupportTicket[]>([
@@ -127,8 +186,18 @@ export function UserDashboard({
         <div className="mb-10 p-8 bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/20 border border-slate-900 rounded-3xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <span className="text-[10px] uppercase tracking-wider text-amber-500 font-extrabold">Active Buyer Account</span>
-              <h1 className="text-3xl font-extrabold text-white mt-1">Hello, Maisie Clarke</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider text-amber-500 font-extrabold">Active Buyer Account</span>
+                {isTwoFactorEnabled && (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <Shield className="w-2.5 h-2.5" />
+                    <span>2FA ACTIVE</span>
+                  </span>
+                )}
+              </div>
+              <h1 className="text-3xl font-extrabold text-white mt-1">
+                Hello, {currentUser ? currentUser.name : 'Maisie Clarke'}
+              </h1>
               <p className="text-xs text-slate-400 mt-1">Manage active subscriptions, view purchases, test APIs, or open support files.</p>
             </div>
             
@@ -140,6 +209,7 @@ export function UserDashboard({
                 { id: 'billing', label: 'Billing & History', icon: <CreditCard className="w-4 h-4" /> },
                 { id: 'keys', label: 'Central API Keys', icon: <Key className="w-4 h-4" /> },
                 { id: 'support', label: 'Support Tickets', icon: <Ticket className="w-4 h-4" /> },
+                { id: 'security', label: 'Security & 2FA', icon: <Shield className="w-4 h-4" /> },
               ].map((subTab) => (
                 <button
                   key={subTab.id}
@@ -527,6 +597,300 @@ export function UserDashboard({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeSubTab === 'security' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* Left Col: Main 2FA controls card */}
+            <div className="lg:col-span-2 p-6 md:p-8 bg-slate-900 border border-slate-800 rounded-3xl h-fit">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-base">Two-Factor Authentication (2FA)</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Secure your seller and developer credentials with multi-factor OTP validation.</p>
+                </div>
+              </div>
+
+              {twoFactorStep === 'idle' && (
+                <div className="space-y-6">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Two-Factor Authentication (2FA) adds an extra, robust layer of security to your client gateway account. Once configured, logging in or rolling your API tokens will require scanning a time-based single-use passcode (OTP) on your mobile authenticator.
+                  </p>
+
+                  {isTwoFactorEnabled ? (
+                    <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl">
+                      <div className="flex items-start gap-3">
+                        <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg shrink-0 mt-0.5">
+                          <Check className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1 flex-grow">
+                          <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Multi-Factor Status: SECURED</h4>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            Two-Factor Authentication is currently active on your account. Your credentials, products, and API billing gateways are safe.
+                          </p>
+                          
+                          <div className="flex flex-wrap gap-3 pt-4">
+                            <button
+                              onClick={() => setTwoFactorStep('backup')}
+                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition"
+                            >
+                              Show Backup Codes
+                            </button>
+                            <button
+                              onClick={handleDisable2FA}
+                              className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold rounded-xl text-xs border border-red-500/20 transition"
+                            >
+                              Disable Two-Factor Auth
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
+                      <div className="flex items-start gap-3">
+                        <div className="p-1.5 bg-amber-500/10 text-amber-500 rounded-lg shrink-0 mt-0.5">
+                          <AlertCircle className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1 flex-grow">
+                          <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider">Multi-Factor Status: UNPROTECTED</h4>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            Two-Factor Authentication is disabled. We highly recommend activating 2FA to shield your private keys from potential credential stuffing or phishing attempts.
+                          </p>
+                          <div className="pt-4">
+                            <button
+                              onClick={handleStartSetup}
+                              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition inline-flex items-center gap-1.5"
+                            >
+                              <Smartphone className="w-3.5 h-3.5" />
+                              <span>Setup Two-Factor Authentication</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {twoFactorStep === 'setup' && (
+                <div className="space-y-6">
+                  {/* Step Banner */}
+                  <div className="p-4 bg-slate-950/60 border border-slate-850 rounded-2xl flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase">Configuration Wizard</span>
+                    <span className="text-[10px] text-slate-500">Step 1 of 2: Verification</span>
+                  </div>
+
+                  {/* Wizard instructions and assets */}
+                  <div className="space-y-5 text-xs text-slate-300">
+                    <div className="space-y-2">
+                      <span className="font-extrabold text-white">1. Scan QR Code on Mobile App</span>
+                      <p className="text-slate-400">
+                        Open your authenticator app (such as Google Authenticator, Authy, or Microsoft Authenticator) and scan the QR barcode below:
+                      </p>
+                    </div>
+
+                    {/* Interactive QR and Secret section */}
+                    <div className="flex flex-col sm:flex-row items-center gap-6 p-5 bg-slate-950 rounded-2xl border border-slate-850">
+                      {/* Detailed Realistic Vector QR Code */}
+                      <svg width="130" height="130" viewBox="0 0 29 29" fill="none" className="bg-white p-2 rounded-xl shrink-0">
+                        <path d="M0,0 h7 v7 h-7 z M1,1 h5 v5 h-5 z M2,2 h3 v3 h-3 z" fill="#0f172a" />
+                        <path d="M22,0 h7 v7 h-7 z M23,1 h5 v5 h-5 z M24,2 h3 v3 h-3 z" fill="#0f172a" />
+                        <path d="M0,22 h7 v7 h-7 z M1,23 h5 v5 h-5 z M2,24 h3 v3 h-3 z" fill="#0f172a" />
+                        <path d="M20,20 h5 v5 h-5 z M21,21 h3 v3 h-3 z" fill="#0f172a" />
+                        <rect x="9" y="1" width="2" height="2" fill="#0f172a" />
+                        <rect x="14" y="0" width="1" height="3" fill="#0f172a" />
+                        <rect x="18" y="2" width="2" height="1" fill="#0f172a" />
+                        <rect x="10" y="5" width="3" height="1" fill="#0f172a" />
+                        <rect x="15" y="4" width="2" height="2" fill="#0f172a" />
+                        <rect x="1" y="9" width="2" height="2" fill="#0f172a" />
+                        <rect x="5" y="10" width="2" height="1" fill="#0f172a" />
+                        <rect x="0" y="14" width="3" height="1" fill="#0f172a" />
+                        <rect x="4" y="16" width="1" height="3" fill="#0f172a" />
+                        <rect x="9" y="9" width="4" height="4" fill="#0f172a" />
+                        <rect x="10" y="10" width="2" height="2" fill="white" />
+                        <rect x="16" y="9" width="3" height="2" fill="#0f172a" />
+                        <rect x="22" y="9" width="2" height="1" fill="#0f172a" />
+                        <rect x="26" y="11" width="3" height="2" fill="#0f172a" />
+                        <rect x="9" y="16" width="2" height="3" fill="#0f172a" />
+                        <rect x="13" y="15" width="3" height="1" fill="#0f172a" />
+                        <rect x="15" y="18" width="2" height="2" fill="#0f172a" />
+                        <rect x="20" y="14" width="4" height="1" fill="#0f172a" />
+                        <rect x="26" y="15" width="2" height="3" fill="#0f172a" />
+                        <rect x="22" y="18" width="2" height="1" fill="#0f172a" />
+                      </svg>
+
+                      {/* Secret text fallback */}
+                      <div className="space-y-2 flex-grow w-full">
+                        <span className="block text-[10px] font-bold text-slate-500 uppercase">Secret Entry Key</span>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={tempSecret}
+                            className="w-full bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 font-mono text-[10px] text-slate-200 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(tempSecret);
+                              alert('Secret Key copied to clipboard!');
+                            }}
+                            className="px-3 bg-slate-900 border border-slate-850 hover:bg-slate-800 transition rounded-xl text-slate-400 hover:text-white"
+                            title="Copy Key"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-relaxed">
+                          If your scanner camera fails to respond, type this key manually into your authenticator app.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Simulated assistant helper banner for sandbox testing */}
+                    <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl">
+                      <div className="flex items-start gap-2">
+                        <Smartphone className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <strong className="block text-[10px] uppercase font-bold text-indigo-300">Developer Sandbox Assist</strong>
+                          <p className="text-[11px] mt-0.5 leading-relaxed">
+                            To simulate scanning, enter the following 6-digit OTP code currently running in your device's virtual pipeline: <span className="font-mono font-black text-amber-500 text-sm tracking-wider underline">{simulatedCode}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Verification input section */}
+                    <div className="space-y-3 pt-2">
+                      <span className="font-extrabold text-white block">2. Enter Verification Code</span>
+                      <form onSubmit={handleVerify2FA} className="space-y-4">
+                        <div>
+                          <input
+                            type="text"
+                            maxLength={6}
+                            required
+                            placeholder="e.g. 000000"
+                            value={verificationCodeInput}
+                            onChange={(e) => setVerificationCodeInput(e.target.value.replace(/\D/g, ''))}
+                            className="w-full sm:w-64 bg-slate-950 border border-slate-800/80 text-center text-slate-200 font-mono text-xl tracking-widest rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/10 transition placeholder-slate-800"
+                          />
+                          {verificationError && (
+                            <p className="text-xs text-red-400 mt-2.5 flex items-center gap-1.5 font-semibold">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>{verificationError}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            type="submit"
+                            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition"
+                          >
+                            Verify & Continue
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTwoFactorStep('idle')}
+                            className="px-5 py-2.5 bg-slate-900 border border-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-xs transition"
+                          >
+                            Cancel Setup
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {twoFactorStep === 'backup' && (
+                <div className="space-y-6">
+                  {/* Step Banner */}
+                  <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase">Verification Successful</span>
+                    <span className="text-[10px] text-slate-500">Step 2 of 2: Save Backups</span>
+                  </div>
+
+                  <div className="space-y-4 text-xs text-slate-300">
+                    <h4 className="font-extrabold text-white">Save Your Secure Backup Codes</h4>
+                    <p className="text-slate-400 leading-relaxed">
+                      If you lose access to your authenticator application or your mobile phone, you can bypass the 2FA screen by keying in one of these single-use recovery tokens. Store them offline or in a trusted password manager.
+                    </p>
+
+                    {/* Codes display grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-950 rounded-2xl border border-slate-850">
+                      {backupCodes.map((code, idx) => (
+                        <div key={idx} className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl text-center font-mono text-xs text-amber-500 select-all font-bold tracking-wider">
+                          {code}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 pt-4">
+                      <button
+                        onClick={handleCopyBackup}
+                        className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition flex items-center gap-1.5"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{copiedBackup ? 'Copied Backup List!' : 'Copy Recovery Codes'}</span>
+                      </button>
+                      <button
+                        onClick={() => setTwoFactorStep('idle')}
+                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition"
+                      >
+                        Complete Setup
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Col: Security Health Checklist panel */}
+            <div className="space-y-6">
+              <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-4">Security Health Audit</span>
+                
+                <div className="space-y-4">
+                  {/* Health checks */}
+                  {[
+                    { label: 'Authorized Session Key', status: true, desc: 'Lumina central proxy token is valid.' },
+                    { label: 'Secure Email Verification', status: true, desc: `Verified via email login (${currentUser ? currentUser.email : 'maisieclarke@gmail.com'})` },
+                    { label: 'Device Multi-Factor Status', status: isTwoFactorEnabled, desc: isTwoFactorEnabled ? '2FA is active and secure.' : '2FA is disabled. Configure OTP setup.' },
+                    { label: 'Sandbox Sandbox Encryption', status: true, desc: 'Standard HTTPS transport protocol active.' },
+                  ].map((check, idx) => (
+                    <div key={idx} className="p-3 bg-slate-950 rounded-xl border border-slate-850 flex gap-3">
+                      <div className={`p-1 rounded-lg shrink-0 h-fit mt-0.5 ${
+                        check.status ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                      }`}>
+                        {check.status ? <Check className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[11px] font-bold text-white block leading-tight">{check.label}</span>
+                        <p className="text-[10px] text-slate-500 leading-relaxed">{check.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Security advice Card */}
+              <div className="p-5 bg-gradient-to-br from-amber-500/5 to-slate-900 border border-slate-850 rounded-2xl text-xs leading-relaxed text-slate-400 space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-500 font-bold uppercase tracking-wider text-[10px]">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Developer Best Practices</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  Never commit plain-text credentials to code repositories. We recommend using server environment configurations alongside Lumina\'s dynamic proxy key mapping system.
+                </p>
+              </div>
+            </div>
+
           </div>
         )}
 
