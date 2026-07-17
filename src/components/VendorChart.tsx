@@ -1,9 +1,14 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Chart, registerables, ChartConfiguration } from 'chart.js';
-import { TrendingUp, DollarSign, Cpu, Calendar, Zap, Award } from 'lucide-react';
-
-// Register all Chart.js modules
-Chart.register(...registerables);
+import React, { useState, useMemo } from 'react';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip 
+} from 'recharts';
+import { TrendingUp, DollarSign, Cpu, Calendar, Award } from 'lucide-react';
 
 interface ChartDataItem {
   date: string;
@@ -12,8 +17,6 @@ interface ChartDataItem {
 }
 
 export function VendorChart() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const chartInstanceRef = useRef<Chart | null>(null);
   const [chartView, setChartView] = useState<'dual' | 'revenue' | 'usage'>('dual');
   const [timeFilter, setTimeFilter] = useState<'30' | '15' | '7'>('30');
 
@@ -75,190 +78,40 @@ export function VendorChart() {
     };
   }, [filteredData]);
 
-  // Re-initialize chart on state changes
-  useEffect(() => {
-    if (!canvasRef.current) return;
-
-    // Destroy existing chart to prevent canvas reuse errors
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
+  // Custom tooltips matching Lumina AI dark design aesthetics
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl shadow-xl space-y-1.5 min-w-[150px]">
+          <p className="text-slate-300 text-[10px] font-extrabold font-sans tracking-wide uppercase">
+            {label}, 2026
+          </p>
+          <div className="space-y-1">
+            {payload.map((item: any) => {
+              const isRevenue = item.dataKey === 'revenue';
+              const valStr = isRevenue 
+                ? `$${item.value.toLocaleString()}` 
+                : `${item.value.toLocaleString()} requests`;
+              const textClass = isRevenue ? 'text-indigo-400' : 'text-amber-400';
+              return (
+                <div key={item.name} className="flex items-center justify-between gap-4 text-[10px] font-sans">
+                  <div className="flex items-center gap-1.5">
+                    <span 
+                      className="w-2 h-2 rounded-full block shrink-0" 
+                      style={{ backgroundColor: item.stroke }} 
+                    />
+                    <span className="text-slate-400">{item.name === 'revenue' ? 'Earnings' : 'Sandbox Calls'}:</span>
+                  </div>
+                  <span className={`font-mono font-bold ${textClass}`}>{valStr}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
     }
-
-    const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
-
-    // Create stylish gradients
-    const revenueGradient = ctx.createLinearGradient(0, 0, 0, 300);
-    revenueGradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');   // Indigo
-    revenueGradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
-
-    const usageGradient = ctx.createLinearGradient(0, 0, 0, 300);
-    usageGradient.addColorStop(0, 'rgba(245, 158, 11, 0.25)');   // Amber
-    usageGradient.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
-
-    const labels = filteredData.map(item => item.date);
-    const revenueValues = filteredData.map(item => item.revenue);
-    const usageValues = filteredData.map(item => item.usage);
-
-    // Build configuration datasets dynamically based on view tab
-    const datasets = [];
-
-    if (chartView === 'dual' || chartView === 'revenue') {
-      datasets.push({
-        label: 'Daily Revenue ($)',
-        data: revenueValues,
-        borderColor: '#6366f1',
-        borderWidth: 3,
-        backgroundColor: revenueGradient,
-        fill: true,
-        tension: 0.35,
-        pointBackgroundColor: '#6366f1',
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 1.5,
-        pointRadius: filteredData.length > 15 ? 2.5 : 4,
-        pointHoverRadius: 6,
-        yAxisID: 'yRevenue',
-      });
-    }
-
-    if (chartView === 'dual' || chartView === 'usage') {
-      datasets.push({
-        label: 'API Sandbox Usage',
-        data: usageValues,
-        borderColor: '#f59e0b',
-        borderWidth: 2.5,
-        borderDash: chartView === 'dual' ? [5, 4] : [], // Dashed in dual-mode for neat contrast
-        backgroundColor: usageGradient,
-        fill: true,
-        tension: 0.3,
-        pointBackgroundColor: '#f59e0b',
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 1.5,
-        pointRadius: filteredData.length > 15 ? 2.5 : 4,
-        pointHoverRadius: 6,
-        yAxisID: 'yUsage',
-      });
-    }
-
-    const config: ChartConfiguration = {
-      type: 'line',
-      data: {
-        labels,
-        datasets,
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false,
-        },
-        plugins: {
-          legend: {
-            display: false, // Custom styled legend constructed in JSX below
-          },
-          tooltip: {
-            backgroundColor: '#0f172a', // Slate-900 background
-            titleColor: '#f8fafc', // Slate-50
-            bodyColor: '#cbd5e1', // Slate-300
-            borderColor: '#334155', // Slate-700
-            borderWidth: 1,
-            padding: 12,
-            cornerRadius: 12,
-            titleFont: {
-              family: 'Inter, sans-serif',
-              size: 11,
-              weight: 'bold',
-            },
-            bodyFont: {
-              family: 'Inter, sans-serif',
-              size: 11,
-            },
-            callbacks: {
-              label: function (context) {
-                let label = context.dataset.label || '';
-                if (label) {
-                  label += ': ';
-                }
-                if (context.parsed.y !== null) {
-                  if (context.dataset.yAxisID === 'yRevenue') {
-                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
-                  } else {
-                    label += new Intl.NumberFormat('en-US').format(context.parsed.y) + ' requests';
-                  }
-                }
-                return label;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-            ticks: {
-              color: '#64748b', // Slate-500
-              font: {
-                family: 'Inter, sans-serif',
-                size: 9,
-                weight: 500
-              },
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: filteredData.length > 15 ? 8 : 15
-            }
-          },
-          yRevenue: {
-            type: 'linear',
-            display: chartView === 'dual' || chartView === 'revenue',
-            position: 'left',
-            grid: {
-              color: '#1e293b', // Slate-800 line
-            },
-            ticks: {
-              color: '#818cf8', // Indigo-400
-              font: {
-                family: 'JetBrains Mono, monospace',
-                size: 9,
-              },
-              callback: function (value) {
-                return '$' + value;
-              }
-            }
-          },
-          yUsage: {
-            type: 'linear',
-            display: chartView === 'dual' || chartView === 'usage',
-            position: 'right',
-            grid: {
-              drawOnChartArea: chartView === 'usage', // draw grid lines only if main usage view or disabled to avoid double grid lines
-              color: '#1e293b',
-            },
-            ticks: {
-              color: '#fbbf24', // Amber-400
-              font: {
-                family: 'JetBrains Mono, monospace',
-                size: 9,
-              },
-              callback: function (value) {
-                return value + ' rq';
-              }
-            }
-          }
-        }
-      }
-    };
-
-    chartInstanceRef.current = new Chart(ctx, config);
-
-    // Clean up on component unmount
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
-      }
-    };
-  }, [filteredData, chartView]);
+    return null;
+  };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 lg:p-8 shadow-xl">
@@ -343,7 +196,89 @@ export function VendorChart() {
               )}
             </div>
 
-            <canvas ref={canvasRef} className="w-full h-full" />
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={filteredData}
+                margin={{ top: 40, right: 10, left: -15, bottom: 5 }}
+              >
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#64748b" 
+                  tickLine={false} 
+                  axisLine={false}
+                  tick={{ fontSize: 9, fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
+                  dy={8}
+                />
+                
+                {/* Conditionally display Revenue axis */}
+                {(chartView === 'dual' || chartView === 'revenue') && (
+                  <YAxis 
+                    yAxisId="yRevenue" 
+                    orientation="left" 
+                    stroke="#818cf8" 
+                    tickLine={false} 
+                    axisLine={false}
+                    tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                    tickFormatter={(value) => `$${value}`}
+                  />
+                )}
+
+                {/* Conditionally display Usage axis */}
+                {(chartView === 'dual' || chartView === 'usage') && (
+                  <YAxis 
+                    yAxisId="yUsage" 
+                    orientation="right" 
+                    stroke="#fbbf24" 
+                    tickLine={false} 
+                    axisLine={false}
+                    tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+                    tickFormatter={(value) => `${value} rq`}
+                  />
+                )}
+
+                <Tooltip content={<CustomTooltip />} />
+
+                {/* Revenue Area Line */}
+                {(chartView === 'dual' || chartView === 'revenue') && (
+                  <Area
+                    yAxisId="yRevenue"
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#6366f1"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                  />
+                )}
+
+                {/* Usage Area Line */}
+                {(chartView === 'dual' || chartView === 'usage') && (
+                  <Area
+                    yAxisId="yUsage"
+                    type="monotone"
+                    dataKey="usage"
+                    stroke="#f59e0b"
+                    strokeDasharray={chartView === 'dual' ? "5 4" : undefined}
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#colorUsage)"
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                  />
+                )}
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Chart footer detail info */}
@@ -353,7 +288,10 @@ export function VendorChart() {
               <span>Auditing range: {filteredData[0]?.date} - {filteredData[filteredData.length - 1]?.date}, 2026</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 block"></span> Active node: online</span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 block"></span> 
+                Active node: online
+              </span>
               <span>•</span>
               <span>Updated a few seconds ago</span>
             </div>
